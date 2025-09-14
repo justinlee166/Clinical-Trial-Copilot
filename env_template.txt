@@ -1,0 +1,11 @@
+# Clinical Trial Copilot API Keys
+# Copy this content to a .env file and replace with your actual API keys
+
+CLAUDE_API_KEY=your_anthropic_api_key_here
+CEREBRAS_API_KEY=your_cerebras_api_key_here
+
+# Instructions:
+# 1. Get your Claude API key from: https://console.anthropic.com/
+# 2. Get your Cerebras API key from: https://cloud.cerebras.ai/
+# 3. Copy this file to .env (it will be ignored by git)
+# 4. Replace the placeholder values with your actual API keys
