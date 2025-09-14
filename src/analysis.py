@@ -33,6 +33,93 @@ class ClinicalTrialAnalyzer:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
     
+    def _clean_dictionary_string(self, text: str, max_length: int = 200) -> str:
+        """Clean up dictionary strings and extract readable content."""
+        if not isinstance(text, str):
+            return str(text)
+        
+        # If it's a dictionary string, try to extract readable content
+        if text.strip().startswith('{') and text.strip().endswith('}'):
+            try:
+                import ast
+                data = ast.literal_eval(text)
+                if isinstance(data, dict):
+                    # Extract key-value pairs as readable text
+                    readable_parts = []
+                    for key, value in data.items():
+                        readable_parts.append(f"{key.replace('_', ' ').title()}: {value}")
+                    result = '; '.join(readable_parts)
+                    # Truncate if too long
+                    if len(result) > max_length:
+                        return result[:max_length] + "..."
+                    return result
+            except (ValueError, SyntaxError):
+                # For malformed dictionary strings, extract the first meaningful part
+                # Remove the outer braces and extract the first key-value pair
+                inner = text.strip()[1:-1]  # Remove { and }
+                # Find the first colon to separate key from value
+                colon_pos = inner.find(':')
+                if colon_pos > 0:
+                    key = inner[:colon_pos].strip().strip("'\"")
+                    value = inner[colon_pos+1:].strip().strip("'\"")
+                    # Remove any trailing comma or other characters
+                    if ',' in value:
+                        value = value[:value.find(',')].strip()
+                    result = f"{key.replace('_', ' ').title()}: {value}"
+                    if len(result) > max_length:
+                        return result[:max_length] + "..."
+                    return result
+        
+        # If it contains multiple dictionary strings, extract the first one
+        if '{' in text and '}' in text:
+            # Find the first complete dictionary string
+            start = text.find('{')
+            if start != -1:
+                brace_count = 0
+                end = start
+                for i, char in enumerate(text[start:], start):
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end = i + 1
+                            break
+                
+                if end > start:
+                    dict_str = text[start:end]
+                    # Process the extracted string
+                    try:
+                        import ast
+                        data = ast.literal_eval(dict_str)
+                        if isinstance(data, dict):
+                            readable_parts = []
+                            for key, value in data.items():
+                                readable_parts.append(f"{key.replace('_', ' ').title()}: {value}")
+                            result = '; '.join(readable_parts)
+                            if len(result) > max_length:
+                                return result[:max_length] + "..."
+                            return result
+                    except (ValueError, SyntaxError):
+                        # For malformed dictionary strings, extract the first meaningful part
+                        inner = dict_str.strip()[1:-1]  # Remove { and }
+                        colon_pos = inner.find(':')
+                        if colon_pos > 0:
+                            key = inner[:colon_pos].strip().strip("'\"")
+                            value = inner[colon_pos+1:].strip().strip("'\"")
+                            if ',' in value:
+                                value = value[:value.find(',')].strip()
+                            result = f"{key.replace('_', ' ').title()}: {value}"
+                            if len(result) > max_length:
+                                return result[:max_length] + "..."
+                            return result
+        
+        # Truncate if too long
+        if len(text) > max_length:
+            return text[:max_length] + "..."
+        
+        return text
+    
     def save_clinical_data_csv(self, clinical_data: Dict[str, Any], filename: str = None) -> str:
         """Save clinical trial data as CSV file."""
         if filename is None:
@@ -44,10 +131,69 @@ class ClinicalTrialAnalyzer:
         # Convert nested data to flat structure for CSV
         flattened_data = []
         for key, value in clinical_data.items():
-            flattened_data.append({
-                'Field': key.replace('_', ' ').title(),
-                'Value': str(value)
-            })
+            # Handle dictionary values properly
+            if isinstance(value, dict):
+                # For methodology dict, extract individual components
+                if key == 'methodology' and 'study_design' in value and 'methodology' in value:
+                    flattened_data.append({
+                        'Field': 'Study Design',
+                        'Value': value.get('study_design', 'N/A')
+                    })
+                    flattened_data.append({
+                        'Field': 'Methodology',
+                        'Value': value.get('methodology', 'N/A')
+                    })
+                else:
+                    # For other dicts, create separate rows for each key
+                    for sub_key, sub_value in value.items():
+                        flattened_data.append({
+                            'Field': f"{key.replace('_', ' ').title()} - {sub_key.replace('_', ' ').title()}",
+                            'Value': str(sub_value)
+                        })
+            elif isinstance(value, str) and key == 'methodology' and value.strip().startswith('{') and value.strip().endswith('}'):
+                # Handle string representation of methodology dictionary
+                try:
+                    import ast
+                    methodology_dict = ast.literal_eval(value)
+                    if isinstance(methodology_dict, dict):
+                        flattened_data.append({
+                            'Field': 'Study Design',
+                            'Value': methodology_dict.get('study_design', 'N/A')
+                        })
+                        flattened_data.append({
+                            'Field': 'Methodology',
+                            'Value': methodology_dict.get('methodology', 'N/A')
+                        })
+                    else:
+                        flattened_data.append({
+                            'Field': key.replace('_', ' ').title(),
+                            'Value': str(value)
+                        })
+                except (ValueError, SyntaxError):
+                    # Try to extract values using regex if ast.literal_eval fails
+                    import re
+                    study_design_match = re.search(r"study_design:\s*([^,}]+)", value)
+                    methodology_match = re.search(r"methodology:\s*([^,}]+)", value)
+                    
+                    if study_design_match and methodology_match:
+                        flattened_data.append({
+                            'Field': 'Study Design',
+                            'Value': study_design_match.group(1)
+                        })
+                        flattened_data.append({
+                            'Field': 'Methodology',
+                            'Value': methodology_match.group(1)
+                        })
+                    else:
+                        flattened_data.append({
+                            'Field': key.replace('_', ' ').title(),
+                            'Value': str(value)
+                        })
+            else:
+                flattened_data.append({
+                    'Field': key.replace('_', ' ').title(),
+                    'Value': str(value)
+                })
         
         df = pd.DataFrame(flattened_data)
         df.to_csv(filepath, index=False)
@@ -206,7 +352,39 @@ class ClinicalTrialAnalyzer:
         
         # Add methodology information
         methodology = clinical_data.get('methodology', 'Standard clinical trial design')
-        ax.text(0.5, 0.3, f"Study Design: {methodology}", 
+        
+        # Handle case where methodology is a dictionary or string representation of dictionary
+        if isinstance(methodology, dict):
+            study_design = methodology.get('study_design', 'Cross-sectional survey')
+            methodology_text = methodology.get('methodology', 'Multivariable logistic regression')
+            display_text = f"Study Design: {study_design}\nMethodology: {methodology_text}"
+        elif isinstance(methodology, str) and methodology.strip().startswith('{') and methodology.strip().endswith('}'):
+            # Handle string representation of dictionary
+            try:
+                import ast
+                methodology_dict = ast.literal_eval(methodology)
+                if isinstance(methodology_dict, dict):
+                    study_design = methodology_dict.get('study_design', 'Cross-sectional survey')
+                    methodology_text = methodology_dict.get('methodology', 'Multivariable logistic regression')
+                    display_text = f"Study Design: {study_design}\nMethodology: {methodology_text}"
+                else:
+                    display_text = f"Study Design: {methodology}"
+            except (ValueError, SyntaxError):
+                # Try to extract values using regex if ast.literal_eval fails
+                import re
+                study_design_match = re.search(r"study_design:\s*([^,}]+)", methodology)
+                methodology_match = re.search(r"methodology:\s*([^,}]+)", methodology)
+                
+                if study_design_match and methodology_match:
+                    study_design = study_design_match.group(1)
+                    methodology_text = methodology_match.group(1)
+                    display_text = f"Study Design: {study_design}\nMethodology: {methodology_text}"
+                else:
+                    display_text = f"Study Design: {methodology}"
+        else:
+            display_text = f"Study Design: {methodology}"
+        
+        ax.text(0.5, 0.3, display_text, 
                transform=ax.transAxes, ha='center', va='center',
                fontsize=12, bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow"))
         
@@ -325,10 +503,11 @@ class ClinicalTrialAnalyzer:
                     fontsize=16, fontweight='bold')
         
         # Top-left: Study overview
+        endpoints_clean = self._clean_dictionary_string(clinical_data.get('endpoints', 'N/A'), 60)
         study_info = [
             f"Study Type: {clinical_data.get('study_type', 'N/A')}",
             f"Participants: {clinical_data.get('participants', 'N/A')}",
-            f"Primary Endpoint: {clinical_data.get('endpoints', 'N/A')[:40]}..."
+            f"Primary Endpoint: {endpoints_clean}"
         ]
         ax1.text(0.1, 0.7, '\n'.join(study_info), transform=ax1.transAxes, 
                 fontsize=11, verticalalignment='top',
@@ -337,7 +516,7 @@ class ClinicalTrialAnalyzer:
         ax1.axis('off')
         
         # Top-right: Results summary
-        results = clinical_data.get('results_summary', 'No results available')[:200] + "..."
+        results = self._clean_dictionary_string(clinical_data.get('results_summary', 'No results available'), 200)
         ax2.text(0.1, 0.9, results, transform=ax2.transAxes, 
                 fontsize=10, verticalalignment='top', wrap=True,
                 bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgreen"))
@@ -345,7 +524,7 @@ class ClinicalTrialAnalyzer:
         ax2.axis('off')
         
         # Bottom-left: Safety data
-        safety = clinical_data.get('adverse_events', 'No safety data available')[:200] + "..."
+        safety = self._clean_dictionary_string(clinical_data.get('adverse_events', 'No safety data available'), 200)
         ax3.text(0.1, 0.9, safety, transform=ax3.transAxes, 
                 fontsize=10, verticalalignment='top', wrap=True,
                 bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow"))
@@ -353,7 +532,7 @@ class ClinicalTrialAnalyzer:
         ax3.axis('off')
         
         # Bottom-right: Statistical analysis
-        stats = clinical_data.get('statistical_analysis', 'No statistical data available')[:200] + "..."
+        stats = self._clean_dictionary_string(clinical_data.get('statistical_analysis', 'No statistical data available'), 200)
         ax4.text(0.1, 0.9, stats, transform=ax4.transAxes, 
                 fontsize=10, verticalalignment='top', wrap=True,
                 bbox=dict(boxstyle="round,pad=0.5", facecolor="lightcoral"))

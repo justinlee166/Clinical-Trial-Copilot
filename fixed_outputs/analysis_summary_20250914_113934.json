@@ -1,0 +1,34 @@
+{
+  "analysis_summary": {
+    "pdf_file": "data/journal.pone.0327794.pdf",
+    "processing_timestamp": "2025-09-14T11:39:23.506414",
+    "study_title": "Investigating the Effect of Model Scaling on LLMs' Grammaticality Judgment Tasks",
+    "study_type": "Unable to determine study type",
+    "participants": "1,200 participants",
+    "total_files_generated": 12
+  },
+  "generated_files": [
+    "fixed_outputs\\clinical_data_20250914_113934.json",
+    "fixed_outputs\\clinical_analysis_report_20250914_113946.txt",
+    "fixed_outputs\\executive_summary_20250914_113934.txt",
+    "fixed_outputs\\follow_up_studies_20250914_113934.txt",
+    "fixed_outputs\\clinical_trial_data_20250914_114001.csv",
+    "fixed_outputs\\efficacy_chart_20250914_114002.png",
+    "fixed_outputs\\safety_profile_20250914_114002.png",
+    "fixed_outputs\\study_timeline_20250914_114002.png",
+    "fixed_outputs\\custom_Grammaticality_Judgment_Accuracy_by_Model_Type_20250914_114002.png",
+    "fixed_outputs\\custom_Response_Stability_Over_Repetitions_20250914_114002.png",
+    "fixed_outputs\\custom_Performance_Distribution_by_Model_Type_20250914_114003.png",
+    "fixed_outputs\\clinical_dashboard_20250914_114003.png"
+  ],
+  "clinical_data_summary": {
+    "title": "Investigating the Effect of Model Scaling on LLMs' Grammaticality Judgment Tasks",
+    "participants": "1,200 participants",
+    "study_type": "Unable to determine study type",
+    "endpoints": "{'primary': 'Accuracy and response stability of LLMs in grammaticality judgment tasks', 'secondary':...",
+    "results_summary": "of the best performing LLM, ChatGPT-4, are compared to results of n = 80 humans on the same stimuli\n...",
+    "methodology": "The study used a systematic assessment of the performance of three LLMs on a grammaticality judgment...",
+    "adverse_events": "Not specified\n\nNone reported\n\nNone reported\n\nNot applicable\n\n{'safety_data': 'Not specified', 'adver...",
+    "statistical_analysis": "Not specified"
+  }
+}
